@@ -6,6 +6,8 @@ import (
 	"labix.org/v2/mgo"
 	"log"
 	"os"
+	"net/http"
+	"strconv"
 )
 
 const (
@@ -44,10 +46,26 @@ func main() {
 		return string(body)
 	})
 
-	m.Get("/:col", func(mdb *mgo.Database, params martini.Params) string {
+	m.Get("/:col", func(mdb *mgo.Database, params martini.Params, req *http.Request) string {
+		req.ParseForm()
 		mcol := mdb.C(params["col"])
+		limit := 20
+		offset := 0
+		if t := req.FormValue("limit");t != ""{
+			limit, err = strconv.Atoi(t)
+			e(err, false)
+		}
+		if t := req.FormValue("offset"); t != ""{
+			offset, err = strconv.Atoi(t)
+			e(err, false)
+		}
+
+		total_count, err := mcol.Find(nil).Count()
+		e(err, false)
+
 		items := []map[string]interface{}{}
-		iter := mcol.Find(nil).Iter()
+
+		iter := mcol.Find(nil).Skip(offset).Limit(limit).Iter()
 		for {
 			item := map[string]interface{}{}
 			if iter.Next(&item) {
@@ -56,7 +74,15 @@ func main() {
 				break
 			}
 		}
-		body, err := json.Marshal(items)
+
+		dict := map[string]interface{}{
+			"meta": map[string]int{"total_count": total_count, "offset": offset, "limit": limit,},
+			"data": items,
+			"msg": "success",
+			"code": 0,
+		}
+
+		body, err := json.Marshal(dict)
 		e(err, false)
 		return string(body)
 	})
