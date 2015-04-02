@@ -2,18 +2,26 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/cloudflare/conf"
 	"github.com/go-martini/martini"
 	"labix.org/v2/mgo"
 	"log"
-	"os"
 	"net/http"
+	"os"
 	"strconv"
 )
 
-const (
-	MONGO_URL = "127.0.0.1:27017"
-	MONGO_DB  = "devmgmt"
+var (
+	MONGO_URL string
+	MONGO_DB  string
 )
+
+func init() {
+	c, err := conf.ReadConfigFile("config.conf")
+	e(err, true)
+	MONGO_URL = c.GetString("MONGO_URL", "127.0.0.1:27017")
+	MONGO_DB = c.GetString("MONGO_DB", "test")
+}
 
 func e(err error, fatal bool) (ret bool) {
 	if err != nil {
@@ -51,11 +59,11 @@ func main() {
 		mcol := mdb.C(params["col"])
 		limit := 20
 		offset := 0
-		if t := req.FormValue("limit");t != ""{
+		if t := req.FormValue("limit"); t != "" {
 			limit, err = strconv.Atoi(t)
 			e(err, false)
 		}
-		if t := req.FormValue("offset"); t != ""{
+		if t := req.FormValue("offset"); t != "" {
 			offset, err = strconv.Atoi(t)
 			e(err, false)
 		}
@@ -76,9 +84,9 @@ func main() {
 		}
 
 		dict := map[string]interface{}{
-			"meta": map[string]int{"total_count": total_count, "offset": offset, "limit": limit,},
+			"meta": map[string]int{"total_count": total_count, "offset": offset, "limit": limit},
 			"data": items,
-			"msg": "success",
+			"msg":  "success",
 			"code": 0,
 		}
 
